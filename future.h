@@ -4,8 +4,7 @@
 #include <cassert>
 #include <functional>
 #include <memory>
-#include <thread>
-#include <type_traits>
+#include <mutex>
 #include <boost/optional.hpp>
 
 #include "helpers.h"
@@ -19,50 +18,37 @@ template<typename T> Future<T> make_ready_future(T&& value);
 Future<void> make_ready_future();
 
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Traits
+//
+////////////////////////////////////////////////////////////////////////////////
+namespace internal {
+  template<typename T> struct add_future            { typedef Future<T> type; };
+  template<typename T> struct add_future<Future<T>> { typedef Future<T> type; };
+
+  template<typename T> struct remove_future            { typedef T type; };
+  template<typename T> struct remove_future<Future<T>> { typedef T type; };
+}
+
+//------------------------------------------------------------------------------
+template<typename T>
+using add_future = typename internal::add_future<T>::type;
+
+//------------------------------------------------------------------------------
+template<typename T>
+using remove_future = typename internal::remove_future<T>::type;
+
+//------------------------------------------------------------------------------
+template<typename U> struct is_future : std::false_type {};
+template<typename T> struct is_future<Future<T>> : std::true_type {};
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 namespace detail {
-  //----------------------------------------------------------------------------
-  template<typename F, typename... Args> struct _result_of {
-    typedef typename std::result_of<F(Args...)>::type type;
-  };
-
-  template<typename F> struct _result_of<F, void> {
-    typedef typename std::result_of<F()>::type type;
-  };
-
-  template<typename F, typename... Args> struct _checked_result_of {
-    static_assert(::can_call<F, Args...>{}, "F cannot be called with arguments of types Args...");
-    typedef typename _result_of<F, Args...>::type type;
-  };
-
-  //----------------------------------------------------------------------------
-  // result_of<T, A> is the same as result_of_t<T(A0)>, but it works also when
-  // A is void, in which case it is the same as result_of_t<T()>.
-  template<typename... T>
-  using result_of = typename _checked_result_of<T...>::type;
-
-  //----------------------------------------------------------------------------
-  template<typename T> struct is_void : std::is_same<T, void> {};
-
-  //----------------------------------------------------------------------------
-  template<typename T> struct _unwrapped            { typedef T type; };
-  template<typename T> struct _unwrapped<Future<T>> { typedef T type; };
-
-  //----------------------------------------------------------------------------
-  // If T is a Future, returns its underlying value type. otherwise returns T.
-  template<typename T>
-  using unwrapped_type = typename _unwrapped<T>::type;
-
-  template<typename... T>
-  using unwrapped_result_of = unwrapped_type<result_of<T...>>;
-
-  //----------------------------------------------------------------------------
   using lock_guard = std::lock_guard<std::mutex>;
-
-} // namespace detail
-
-
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -81,10 +67,8 @@ public:
     other._state = nullptr;
   }
 
-  // TODO: is possible, add a static_assert that fun is callable with T
   template<typename F>
-  Future<detail::unwrapped_result_of<F, T>>
-  then(F&& fun) {
+  add_future<result_of<F, T>> then(F&& fun) {
     assert(_state);
     detail::lock_guard lock(_state->mutex);
 
@@ -127,6 +111,9 @@ public:
     other._state = nullptr;
   }
 
+  Promise(const Promise<T>&) = delete;
+  Promise<T>& operator = (const Promise<T>&) = delete;
+
   Future<T> get_future() const {
     assert(_state);
     return { _state };
@@ -159,22 +146,12 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// is_future - test if the given type is a future.
-//
-////////////////////////////////////////////////////////////////////////////////
-template<typename U> struct is_future : std::false_type {};
-template<typename T> struct is_future<Future<T>> : std::true_type {};
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-//
 // make_ready_future - Create a future that already holds a value.
 //
 ////////////////////////////////////////////////////////////////////////////////
 template<typename T>
 Future<T> make_ready_future(T&& value) {
-  static_assert( !is_future<typename std::remove_reference<T>::type>{}
+  static_assert( !is_future<remove_reference<T>>{}
                , "l-value Future not allowed as argument to make_ready_future");
 
   Promise<T> promise;
@@ -200,7 +177,7 @@ inline Future<void> make_ready_future() {
 ////////////////////////////////////////////////////////////////////////////////
 namespace detail {
   //----------------------------------------------------------------------------
-  // Set value of a promise to the result of calling the given function with
+  // Set value of a promise to the result of calling the given callable with
   // the given arguments.
   template<typename R, typename F, typename... Args>
   void set_value(Promise<R>& promise, F&& fun, Args&&... args) {
@@ -214,16 +191,17 @@ namespace detail {
   }
 
   //----------------------------------------------------------------------------
-  // Make a ready future from the result of calling the given function with the
+  // Make a ready future from the result of calling the given callable with the
   // given arguments.
   template<typename F, typename... Args>
-  enable_if_t<!is_void<result_of<F, Args...>>{}, Future<unwrapped_result_of<F, Args...>>>
+  enable_if< !is_void<result_of<F, Args...>>{}
+           , add_future<result_of<F, Args...>>>
   make_ready_future(F&& fun, Args&&... args) {
     return ::make_ready_future(fun(std::forward<Args>(args)...));
   }
 
   template<typename F, typename... Args>
-  enable_if_t<is_void<result_of<F, Args...>>{}, Future<void>>
+  enable_if<is_void<result_of<F, Args...>>{}, Future<void>>
   make_ready_future(F&& fun, Args&&... args) {
     fun(std::forward<Args>(args)...);
     return ::make_ready_future();
@@ -237,29 +215,50 @@ namespace detail {
     virtual void operator () (Args&&... args) = 0;
   };
 
-  template<typename R, typename... Args>
+  template<typename F, typename... Args>
   class Continuation : public ContinuationBase<Args...> {
+    static_assert(!std::is_reference<F>{}, "F cannot be a reference");
+
   public:
 
-    template<typename F>
-    Continuation(F&& fun) : _fun(fun) {}
+    typedef result_of<F, Args...> result_type;
 
-    Continuation(const Continuation<R, Args...>&) = delete;
-    Continuation<R, Args...>& operator = (const Continuation<R, Args...>&) = delete;
+    Continuation(const F& fun)
+      : _fun(fun) {}
+
+    Continuation(F&& fun)
+      : _fun(std::move(fun)) {}
+
+    Continuation(const Continuation<F, Args...>&) = delete;
+    Continuation<F, Args...>& operator = (const Continuation<F, Args...>&) = delete;
 
     void operator () (Args&&... args) override {
       detail::set_value(_promise, _fun, std::forward<Args>(args)...);
     }
 
-    Future<unwrapped_type<R>> get_future() const {
+    add_future<result_type> get_future() const {
       return _promise.get_future();
     }
 
   private:
 
-    std::function<R(Args...)>   _fun;
-    Promise<unwrapped_type<R>>  _promise;
+    F                                   _fun;
+    Promise<remove_future<result_type>> _promise;
   };
+
+  //----------------------------------------------------------------------------
+  template<typename F, typename... T>
+  add_future<result_of<F, T...>> build_continuation(
+      std::unique_ptr<ContinuationBase<T&...>>& storage
+    , F&&                                       fun
+  )
+  {
+    using CB = ContinuationBase<T&...>;
+    using C  = Continuation<remove_reference<F>, T&...>;
+
+    storage.reset(static_cast<CB*>(new C(std::forward<F>(fun))));
+    return static_cast<C&>(*storage).get_future();
+  }
 } // namespace detail
 
 
@@ -302,15 +301,11 @@ struct Future<T>::State {
   }
 
   template<typename F>
-  Future<detail::unwrapped_result_of<F, T>> set_continuation(F&& fun) {
+  add_future<result_of<F, T>> set_continuation(F&& fun) {
     if (value) {
       return detail::make_ready_future(fun, *value);
     } else {
-      using CB = detail::ContinuationBase<T&>;
-      using C  = detail::Continuation<decltype(fun(*value)), T&>;
-
-      continuation.reset(static_cast<CB*>(new C(fun)));
-      return static_cast<C&>(*continuation).get_future();
+      return detail::build_continuation(continuation, std::forward<F>(fun));
     }
   }
 
@@ -354,15 +349,11 @@ struct Future<void>::State {
   }
 
   template<typename F>
-  Future<detail::unwrapped_result_of<F, void>> set_continuation(F&& fun) {
+  add_future<result_of<F>> set_continuation(F&& fun) {
     if (ready) {
       return detail::make_ready_future(fun);
     } else {
-      typedef detail::ContinuationBase<>            CB;
-      typedef detail::Continuation<decltype(fun())> C;
-
-      continuation.reset(static_cast<CB*>(new C(fun)));
-      return static_cast<C&>(*continuation).get_future();
+      return detail::build_continuation(continuation, std::forward<F>(fun));
     }
   }
 

@@ -1,4 +1,5 @@
 #include <boost/test/unit_test.hpp>
+#include <thread>
 
 #include "test_helpers.h"
 #include "future.h"
