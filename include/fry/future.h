@@ -1,5 +1,12 @@
-#ifndef __FUTURE_H__
-#define __FUTURE_H__
+//
+// Copyright (c) 2014 Adam Cigánek (adam.ciganek@gmail.com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
+#ifndef __FRY__FUTURE_H__
+#define __FRY__FUTURE_H__
 
 #include <cassert>
 #include <functional>
@@ -8,6 +15,8 @@
 #include <boost/optional.hpp>
 
 #include "helpers.h"
+
+namespace fry {
 
 ////////////////////////////////////////////////////////////////////////////////
 template<typename> class Future;
@@ -197,14 +206,14 @@ namespace detail {
   enable_if< !is_void<result_of<F, Args...>>{}
            , add_future<result_of<F, Args...>>>
   make_ready_future(F&& fun, Args&&... args) {
-    return ::make_ready_future(fun(std::forward<Args>(args)...));
+    return ::fry::make_ready_future(fun(std::forward<Args>(args)...));
   }
 
   template<typename F, typename... Args>
   enable_if<is_void<result_of<F, Args...>>{}, Future<void>>
   make_ready_future(F&& fun, Args&&... args) {
     fun(std::forward<Args>(args)...);
-    return ::make_ready_future();
+    return ::fry::make_ready_future();
   }
 
   //----------------------------------------------------------------------------
@@ -402,4 +411,6 @@ private:
   Promise<R>                _promise;
 };
 
-#endif // __FUTURE_H__
+} // namespace fry
+
+#endif // __FRY__FUTURE_H__

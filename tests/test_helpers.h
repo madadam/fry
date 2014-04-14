@@ -1,9 +1,16 @@
+//
+// Copyright (c) 2014 Adam Cigánek (adam.ciganek@gmail.com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #ifndef __TEST_HELPERS_H__
 #define __TEST_HELPERS_H__
 
 #include <mutex>
 #include <type_traits>
-#include "result.h"
+#include "fry/result.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Simple wrapper that synchronizes access to the underlying value.
@@ -70,7 +77,7 @@ std::ostream& operator << (std::ostream& s, const TestError& error) {
 }
 
 template<typename T, typename E>
-std::ostream& operator << (std::ostream& s, const Result<T, E>& r) {
+std::ostream& operator << (std::ostream& s, const fry::Result<T, E>& r) {
   r.match( [&s](const T& value) { s << "Success(" << value << ")"; }
          , [&s](const E& error) { s << "Failure(" << error << ")"; });
 
@@ -78,7 +85,7 @@ std::ostream& operator << (std::ostream& s, const Result<T, E>& r) {
 }
 
 template<typename E>
-std::ostream& operator << (std::ostream& s, const Result<void, E>& r) {
+std::ostream& operator << (std::ostream& s, const fry::Result<void, E>& r) {
   r.match( [&s]()               { s << "Success"; }
          , [&s](const E& error) { s << "Failure(" << error << ")"; });
 

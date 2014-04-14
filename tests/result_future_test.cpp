@@ -1,10 +1,16 @@
+//
+// Copyright (c) 2014 Adam Cigánek (adam.ciganek@gmail.com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #include <boost/test/unit_test.hpp>
-#include "future.h"
-#include "result_future.h"
+#include "fry/future.h"
+#include "fry/result_future.h"
 #include "test_helpers.h"
 
-// on_success returns: - void
-//                     - Future<Result<T, E>>
+using namespace fry;
 
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(test_on_success_with_any_value) {

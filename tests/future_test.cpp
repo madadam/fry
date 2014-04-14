@@ -1,10 +1,18 @@
+//
+// Copyright (c) 2014 Adam Cigánek (adam.ciganek@gmail.com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #include <boost/test/unit_test.hpp>
 #include <thread>
 
 #include "test_helpers.h"
-#include "future.h"
+#include "fry/future.h"
 
 using namespace std;
+using namespace fry;
 
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(test_pending_future_calls_the_continuation_when_made_ready) {

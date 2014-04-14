@@ -1,7 +1,16 @@
-#ifndef __HELPERS_H__
-#define __HELPERS_H__
+//
+// Copyright (c) 2014 Adam Cigánek (adam.ciganek@gmail.com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
+#ifndef __FRY__HELPERS_H__
+#define __FRY__HELPERS_H__
 
 #include <type_traits>
+
+namespace fry {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Shortcut for std::enable_if<B, T>::type
@@ -41,7 +50,7 @@ namespace internal {
   };
 
   template<typename F, typename... Args> struct checked_result_of {
-    static_assert(::can_call<F, Args...>{}, "F cannot be called with arguments of types Args...");
+    static_assert(::fry::can_call<F, Args...>{}, "F cannot be called with arguments of types Args...");
     typedef typename result_of<F, Args...>::type type;
   };
 }
@@ -56,6 +65,6 @@ using result_of = typename internal::checked_result_of<T...>::type;
 ////////////////////////////////////////////////////////////////////////////////
 template<typename T> struct is_void : std::is_same<T, void> {};
 
+} // namespace fry
 
-
-#endif // __HELPERS_H__
+#endif // __FRY__HELPERS_H__

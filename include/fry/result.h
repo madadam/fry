@@ -1,8 +1,17 @@
-#ifndef __RESULT_H__
-#define __RESULT_H__
+//
+// Copyright (c) 2014 Adam Cigánek (adam.ciganek@gmail.com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
+#ifndef __FRY__RESULT_H__
+#define __FRY__RESULT_H__
 
 #include <boost/optional.hpp>
 #include "helpers.h"
+
+namespace fry {
 
 ////////////////////////////////////////////////////////////////////////////////
 template<typename, typename> class Result;
@@ -37,7 +46,7 @@ namespace detail {
   enable_if< !is_void<result_of<F, Args...>>{}
            , add_result<result_of<F, Args...>, E>>
   make_result(F&& fun, Args&&... args) {
-    return ::make_result<E>(fun(std::forward<Args>(args)...));
+    return ::fry::make_result<E>(fun(std::forward<Args>(args)...));
   }
 
   template<typename E, typename F, typename... Args>
@@ -51,7 +60,7 @@ namespace detail {
   template<typename T, typename E, typename F, typename R = result_of<F, E>>
   enable_if<!is_void<R>{}, Result<T, E>>
   make_result_from_error(F&& fun, const E& error) {
-    return ::make_result<E>(fun(error));
+    return ::fry::make_result<E>(fun(error));
   }
 
   template<typename T, typename E, typename F, typename R = result_of<F, E>>
@@ -375,4 +384,6 @@ Result<T, E> make_result(Result<T, E>&& result) {
   return std::move(result);
 }
 
-#endif // __RESULT_H__
+} // namespace fry
+
+#endif // __FRY__RESULT_H__

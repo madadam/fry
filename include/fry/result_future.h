@@ -1,10 +1,19 @@
-#ifndef __RESULT_FUTURE_H__
-#define __RESULT_FUTURE_H__
+//
+// Copyright (c) 2014 Adam Cigánek (adam.ciganek@gmail.com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
+#ifndef __FRY__RESULT_FUTURE_H__
+#define __FRY__RESULT_FUTURE_H__
 
 // Utilities to allow convenient use of Futures and Results together.
 
 #include "helpers.h"
 #include "result.h"
+
+namespace fry {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Function adaptor that takes a callable with no arguments and produces a
@@ -48,7 +57,6 @@ struct OnSuccess {
       [this](const T& value) {
         return fun(value).then([](const R& result) {
           return make_result<E>(result);
-          // return Result<R, E>(result);
         });
       },
       [](const E& error) {
@@ -63,4 +71,9 @@ OnSuccess<F> on_success(F&& fun) {
   return { std::forward<F>(fun) };
 }
 
-#endif // __RESULT_FUTURE_H__
+////////////////////////////////////////////////////////////////////////////////
+// TODO: OnFailure
+
+} // namespace fry
+
+#endif // __FRY__RESULT_FUTURE_H__

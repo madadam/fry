@@ -1,10 +1,9 @@
 #include <boost/asio.hpp>
-#include "asio.h"
-#include "future.h"
-#include "result.h"
-#include "result_future.h"
+#include "fry.h"
+#include "fry/asio.h"
 
 using namespace boost::asio;
+using namespace fry;
 using ip::udp;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,10 +16,13 @@ public:
   }
 
   void receive() {
-    asio::receive_from(_socket, buffer(_data, max_length), _sender_endpoint)
-    .then(on_success([=](std::size_t length) {
+    _socket.async_receive_from(
+      buffer(_data, max_length), _sender_endpoint, asio::use_future
+    ).then(on_success([=](std::size_t length) {
       if (length > 0) {
-        return asio::send_to(_socket, buffer(_data, length), _sender_endpoint);
+        return _socket.async_send_to( buffer(_data, length)
+                                    , _sender_endpoint
+                                    , asio::use_future);
       } else {
         return make_ready_future(asio::success(std::size_t(0)));
       }
