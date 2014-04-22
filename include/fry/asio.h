@@ -40,54 +40,64 @@ struct UseFuture {};
 constexpr UseFuture use_future;
 
 ////////////////////////////////////////////////////////////////////////////////
-namespace detail {
-  template<typename T>
-  struct PromiseHandler {
-    PromiseHandler(UseFuture)
-      : promise(std::make_shared<Promise<Result<T>>>())
-    {}
+template<typename T>
+class Handler {
+public:
+  Handler(UseFuture = use_future)
+    : _promise(std::make_shared<Promise<Result<T>>>())
+  {}
 
-    void operator () (const boost::system::error_code& error, T value) {
-      if (error) {
-        promise->set_value(Result<T>(error));
-      } else {
-        promise->set_value(Result<T>(value));
-      }
+  void operator () (const boost::system::error_code& error, T value) {
+    if (error) {
+      _promise->set_value(Result<T>(error));
+    } else {
+      _promise->set_value(Result<T>(value));
     }
+  }
 
-    std::shared_ptr<Promise<Result<T>>> promise;
-  };
+  Future<Result<T>> get_future() const {
+    return _promise->get_future();
+  }
 
-  //----------------------------------------------------------------------------
-  template<>
-  struct PromiseHandler<void> {
-    PromiseHandler(UseFuture)
-      : promise(std::make_shared<Promise<Result<void>>>())
-    {}
+private:
+  std::shared_ptr<Promise<Result<T>>> _promise;
+};
 
-    void operator () (const boost::system::error_code& error) {
-      if (error) {
-        promise->set_value(Result<void>(error));
-      } else {
-        promise->set_value(Result<void>());
-      }
+template<>
+class Handler<void> {
+public:
+  Handler(UseFuture = use_future)
+    : _promise(std::make_shared<Promise<Result<void>>>())
+  {}
+
+  void operator () (const boost::system::error_code& error) {
+    if (error) {
+      _promise->set_value(Result<void>(error));
+    } else {
+      _promise->set_value(Result<void>());
     }
+  }
 
-    std::shared_ptr<Promise<Result<void>>> promise;
-  };
-} // namespace detail
+  Future<Result<void>> get_future() const {
+    return _promise->get_future();
+  }
+
+private:
+  std::shared_ptr<Promise<Result<void>>> _promise;
+};
+
 }} // namespace fry::asio
 
 ////////////////////////////////////////////////////////////////////////////////
 namespace boost { namespace asio {
 
 template <typename T>
-class async_result<::fry::asio::detail::PromiseHandler<T>> {
+class async_result<::fry::asio::Handler<T>> {
 public:
   typedef ::fry::Future<::fry::asio::Result<T>> type;
 
-  explicit async_result(::fry::asio::detail::PromiseHandler<T>& h)
-    : _future(h.promise->get_future())
+  explicit async_result(::fry::asio::Handler<T>& h)
+    : _future(h.get_future())
   {}
 
   type get() {
@@ -101,12 +111,12 @@ private:
 
 template<typename R, typename T>
 struct handler_type<::fry::asio::UseFuture, R(boost::system::error_code, T)> {
-  typedef ::fry::asio::detail::PromiseHandler<T> type;
+  typedef ::fry::asio::Handler<T> type;
 };
 
 template<typename R>
 struct handler_type<::fry::asio::UseFuture, R(boost::system::error_code)> {
-  typedef ::fry::asio::detail::PromiseHandler<void> type;
+  typedef ::fry::asio::Handler<void> type;
 };
 
 }} // namespace boost::asio
