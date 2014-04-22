@@ -46,6 +46,7 @@ BOOST_AUTO_TEST_CASE(test_on_success_with_void) {
   BOOST_CHECK_EQUAL(failure, f(failure));
   BOOST_CHECK_EQUAL(1, probe);
 }
+
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(test_on_success_with_result) {
   int probe = 0;
@@ -76,7 +77,7 @@ BOOST_AUTO_TEST_CASE(test_on_success_with_result) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-BOOST_AUTO_TEST_CASE(test_on_success_with_future) {
+BOOST_AUTO_TEST_CASE(test_on_success_with_future_using_non_void_result) {
   Locked<int> probe{0};
   auto failure = Result<int, TestError>(error1);
 
@@ -101,6 +102,23 @@ BOOST_AUTO_TEST_CASE(test_on_success_with_future) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(test_on_success_with_future_using_void_result) {
+  Locked<int> probe{0};
+
+  auto f = on_success([&]() {
+    ++probe;
+    return make_ready_future();
+  });
+
+  f(make_result<TestError>()).then([&](const Result<void, TestError>& result) {
+    ++probe;
+    BOOST_CHECK_EQUAL(make_result<TestError>(), result);
+  });
+
+  BOOST_CHECK_EQUAL(2, probe);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(test_on_success_with_future_of_result) {
   Locked<int> probe{0};
 
@@ -117,3 +135,20 @@ BOOST_AUTO_TEST_CASE(test_on_success_with_future_of_result) {
   BOOST_CHECK_EQUAL(2, probe);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(test_on_failure_with_any_value) {
+  int probe = 0;
+
+  auto f = on_failure([&](TestError error) {
+    ++probe;
+    return 3;
+  });
+
+  BOOST_CHECK_EQUAL(make_result<TestError>(2), f(make_result<TestError>(2)));
+  BOOST_CHECK_EQUAL(0, probe);
+
+  auto failure = Result<int, TestError>(error1);
+
+  BOOST_CHECK_EQUAL(make_result<TestError>(3), f(failure));
+  BOOST_CHECK_EQUAL(1, probe);
+}

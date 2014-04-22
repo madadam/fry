@@ -20,10 +20,7 @@ template<typename E, typename T>
 Result<typename std::decay<T>::type, E> make_result(T&&);
 
 template<typename E> Result<void, E> make_result();
-
-template<typename E, typename T> Result<T, E>& make_result(Result<T, E>&);
-template<typename E, typename T> const Result<T, E>& make_result(const Result<T, E>&);
-template<typename E, typename T> Result<T, E> make_result(Result<T, E>&&);
+template<typename E, typename T> Result<T, E> make_result(Result<T, E>);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Traits
@@ -370,19 +367,25 @@ Result<void, E> make_result() {
 }
 
 template<typename E, typename T>
-Result<T, E>& make_result(Result<T, E>& result) {
-  return result;
-}
-
-template<typename E, typename T>
-const Result<T, E>& make_result(const Result<T, E>& result) {
-  return result;
-}
-
-template<typename E, typename T>
-Result<T, E> make_result(Result<T, E>&& result) {
+Result<T, E> make_result(Result<T, E> result) {
   return std::move(result);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Function object that calls make_result<E>(value).
+template<typename E>
+struct ResultMaker {
+  template<typename T>
+  auto operator () (T&& value) const
+  -> decltype(make_result<E>(std::forward<T>(value)))
+  {
+    return make_result<E>(std::forward<T>(value));
+  }
+
+  Result<void, E> operator () () const {
+    return make_result<E>();
+  }
+};
 
 } // namespace fry
 

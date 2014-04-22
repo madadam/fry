@@ -34,6 +34,9 @@ Result<T> failure(const boost::system::error_code& code) {
   return Result<T>(code);
 }
 
+template<typename T>
+using FutureResult = Future<Result<T>>;
+
 ////////////////////////////////////////////////////////////////////////////////
 struct UseFuture {};
 

@@ -34,6 +34,7 @@ Always<F> always(F&& fun) {
   return { std::forward<F>(fun) };
 }
 
+
 ////////////////////////////////////////////////////////////////////////////////
 template<typename F>
 struct OnSuccess {
@@ -53,11 +54,12 @@ struct OnSuccess {
           , typename R = remove_reference<remove_future<result_of<F, T>>>
           , typename = enable_if<is_future<result_of<F, T>>{}>>
   add_future<add_result<R, E>> operator () (const Result<T, E>& input) const {
-    return input.match(
-      [this](const T& value) {
-        return fun(value).then([](const R& result) {
-          return make_result<E>(result);
-        });
+    return input.if_success(fun).match(
+      [](const Future<R>& future) {
+        // HACK: Result::match currently does not have a non-const overload.
+        // As a temporary workaroud, we cast away the constness. It is nasty,
+        // but should be safe in this case.
+        return const_cast<Future<R>&>(future).then(ResultMaker<E>());
       },
       [](const E& error) {
         return make_ready_future(add_result<R, E>{ error });
@@ -72,7 +74,25 @@ OnSuccess<F> on_success(F&& fun) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TODO: OnFailure
+template<typename F>
+struct OnFailure {
+  F fun;
+
+  //----------------------------------------------------------------------------
+  template< typename T, typename E
+          , typename = enable_if<!is_future<result_of<F, E>>{}>>
+  auto operator () (const Result<T, E>& input) const
+  -> decltype(input.if_failure(fun))
+  {
+    return input.if_failure(fun);
+  }
+
+};
+
+template<typename F>
+OnFailure<F> on_failure(F&& fun) {
+  return { std::forward<F>(fun) };
+}
 
 } // namespace fry
 
