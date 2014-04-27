@@ -19,6 +19,42 @@ namespace fry {
 namespace detail {
 
   //----------------------------------------------------------------------------
+  // Turns Result<Future<T>, E> into Future<Result<T, E>>.
+  template<typename T, typename E>
+  Future<add_result<T, E>> flip(const Result<Future<T>, E>& result) {
+    return result.match(
+      [](const Future<T>& future) {
+        // HACK: Result::match currently does not have a non-const overload.
+        // As a temporary workaroud, we cast away the constness. It is nasty,
+        // but should be safe in this case.
+        return const_cast<Future<T>&>(future).then(ResultMaker<E>());
+      },
+      [](const E& error) {
+        return ::fry::make_ready_future(add_result<T, E>{ error });
+      }
+    );
+  }
+
+  //----------------------------------------------------------------------------
+  template<typename E>
+  struct ReadyFutureResultMaker {
+    template<typename T>
+    auto operator () (T&& value) const
+    -> decltype(
+      ::fry::make_ready_future(::fry::make_result<E>(std::forward<T>(value)))
+    )
+    {
+      return ::fry::make_ready_future(
+        ::fry::make_result<E>(std::forward<T>(value))
+      );
+    }
+
+    Future<Result<void, E>> operator () () const {
+      return ::fry::make_ready_future(::fry::make_result<E>());
+    }
+  };
+
+  //----------------------------------------------------------------------------
   template<typename F>
   struct OnSuccess {
     F fun;
@@ -32,20 +68,11 @@ namespace detail {
     }
 
     template< typename T, typename E
-            , typename R = remove_reference<remove_future<result_of<F, T>>>
             , typename = enable_if<is_future<result_of<F, T>>{}>>
-    add_future<add_result<R, E>> operator () (const Result<T, E>& input) const {
-      return input.if_success(fun).match(
-        [](const Future<R>& future) {
-          // HACK: Result::match currently does not have a non-const overload.
-          // As a temporary workaroud, we cast away the constness. It is nasty,
-          // but should be safe in this case.
-          return const_cast<Future<R>&>(future).then(ResultMaker<E>());
-        },
-        [](const E& error) {
-          return ::fry::make_ready_future(add_result<R, E>{ error });
-        }
-      );
+    auto operator () (const Result<T, E>& input) const
+    -> decltype(flip(input.if_success(fun)))
+    {
+      return flip(input.if_success(fun));
     }
   };
 
@@ -62,7 +89,15 @@ namespace detail {
       return input.if_failure(fun);
     }
 
-    // TODO: handle functions that return Future.
+    template< typename T, typename E
+            , typename = enable_if<is_future<result_of<F, E>>{}>>
+    Future<Result<T, E>> operator () (const Result<T, E>& input) const
+    {
+      return input.match(
+        ReadyFutureResultMaker<E>(),
+        [=](const E& error) { return fun(error).then(ResultMaker<E>()); }
+      );
+    }
   };
 
   //----------------------------------------------------------------------------

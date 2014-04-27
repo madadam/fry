@@ -23,8 +23,10 @@ template<typename> class Future;
 template<typename> class Promise;
 template<typename> class PackagedTask;
 
-template<typename T> Future<T> make_ready_future(T&& value);
+template<typename T>
+Future<typename std::decay<T>::type> make_ready_future(T&& value);
 Future<void> make_ready_future();
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -149,11 +151,11 @@ private:
 //
 ////////////////////////////////////////////////////////////////////////////////
 template<typename T>
-Future<T> make_ready_future(T&& value) {
+Future<typename std::decay<T>::type> make_ready_future(T&& value) {
   static_assert( !is_future<remove_reference<T>>{}
                , "l-value Future not allowed as argument to make_ready_future");
 
-  Promise<T> promise;
+  Promise<typename std::decay<T>::type> promise;
   promise.set_value(std::forward<T>(value));
 
   return promise.get_future();

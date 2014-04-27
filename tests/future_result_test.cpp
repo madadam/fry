@@ -73,6 +73,7 @@ BOOST_AUTO_TEST_CASE(test_success_continuation_returning_void_on_success) {
   BOOST_CHECK_EQUAL(2, probe);
 }
 
+////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(test_success_continuation_returning_void_on_failure) {
   Locked<int> probe{0};
 
@@ -255,5 +256,61 @@ BOOST_AUTO_TEST_CASE(test_failure_continuation_returning_any_value_on_failure) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(test_failure_continuation_returning_non_void_future) {
+  Locked<int> probe{0};
 
-// TODO: failure_continuation_returning_future
+  Promise<Result<int, TestError>> promise;
+  auto future = promise.get_future();
+
+  future.then([&](TestError error) {
+    ++probe;
+    return make_ready_future(3000);
+  }).then([&](const Result<int, TestError>& result) {
+    ++probe;
+    BOOST_CHECK_EQUAL(make_result<TestError>(3000), result);
+  });
+
+  promise.set_value(Result<int, TestError>(error1));
+
+  BOOST_CHECK_EQUAL(2, probe);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(test_failure_continuation_returning_void_future) {
+  Locked<int> probe{0};
+
+  Promise<Result<void, TestError>> promise;
+  auto future = promise.get_future();
+
+  future.then([&](TestError error) {
+    ++probe;
+    return make_ready_future();
+  }).then([&](const Result<void, TestError>& result) {
+    ++probe;
+    BOOST_CHECK_EQUAL(make_result<TestError>(), result);
+  });
+
+  promise.set_value(Result<void, TestError>(error1));
+
+  BOOST_CHECK_EQUAL(2, probe);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(test_failure_continuation_returning_result_future) {
+  Locked<int> probe{0};
+
+  Promise<Result<int, TestError>> promise;
+  auto future = promise.get_future();
+
+  future.then([&](TestError error) {
+    ++probe;
+    return make_ready_future(make_result<TestError>(3000));
+  }).then([&](const Result<int, TestError>& result) {
+    ++probe;
+    BOOST_CHECK_EQUAL(make_result<TestError>(3000), result);
+  });
+
+  promise.set_value(Result<int, TestError>(error1));
+
+  BOOST_CHECK_EQUAL(2, probe);
+}
