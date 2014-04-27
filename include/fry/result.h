@@ -267,8 +267,8 @@ public:
   typedef E    error_type;
 
   Result() {}
-  Result(const E& error) : _error(error) {}
-  Result(E&& error) : _error(std::move(error)) {}
+  explicit Result(const E& error) : _error(error) {}
+  explicit Result(E&& error) : _error(std::move(error)) {}
 
   //----------------------------------------------------------------------------
   explicit operator bool () const {
@@ -375,7 +375,7 @@ Result<T, E> make_result(Result<T, E> result) {
 // Function object that calls make_result<E>(value).
 template<typename E>
 struct ResultMaker {
-  template<typename T>
+  template<typename T, typename = enable_if<!std::is_same<T, E>()>>
   auto operator () (T&& value) const
   -> decltype(make_result<E>(std::forward<T>(value)))
   {

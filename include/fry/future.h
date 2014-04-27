@@ -57,6 +57,8 @@ template<typename T> struct is_future<Future<T>> : std::true_type {};
 ////////////////////////////////////////////////////////////////////////////////
 namespace detail {
   using lock_guard = std::lock_guard<std::mutex>;
+
+  template<typename> struct State;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -67,32 +69,24 @@ namespace detail {
 template<typename T>
 class Future {
 public:
-  struct State;
-
   Future(const Future<T>&) = delete;
-  Future(Future<T>&& other)
-    : _state(other._state)
-  {
-    other._state = nullptr;
-  }
+  Future(Future<T>&& other) = default;
 
   template<typename F>
   add_future<result_of<F, T>> then(F&& fun) {
     assert(_state);
-    detail::lock_guard lock(_state->mutex);
-
     return _state->set_continuation(fun);
   }
 
 private:
 
-  Future(std::shared_ptr<State> state)
+  Future(std::shared_ptr<detail::State<T>> state)
     : _state(state)
   {}
 
 private:
 
-  std::shared_ptr<State> _state;
+  std::shared_ptr<detail::State<T>> _state;
 
   friend class Promise<T>;
 };
@@ -111,14 +105,10 @@ public:
   typedef T value_type;
 
   Promise()
-    : _state(std::make_shared<typename Future<T>::State>())
+    : _state(std::make_shared<typename detail::State<T>>())
   {}
 
-  Promise(Promise<T>&& other)
-    : _state(other._state)
-  {
-    other._state = nullptr;
-  }
+  Promise(Promise<T>&& other) = default;
 
   Promise(const Promise<T>&) = delete;
   Promise<T>& operator = (const Promise<T>&) = delete;
@@ -148,7 +138,7 @@ public:
 
 private:
 
-  std::shared_ptr<typename Future<T>::State> _state;
+  std::shared_ptr<typename detail::State<T>> _state;
 };
 
 
@@ -273,108 +263,111 @@ namespace detail {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Internal shared state of the Future
-//
-////////////////////////////////////////////////////////////////////////////////
-template<typename T>
-struct Future<T>::State {
-  std::mutex                                    mutex;
-  boost::optional<T>                            value;
-  std::unique_ptr<detail::ContinuationBase<T&>> continuation;
+namespace detail {
 
-  void swap(State& other) {
-    std::swap(value,        other.value);
-    std::swap(continuation, other.continuation);
-  }
+  template<typename T>
+  struct State {
+    std::mutex                                    mutex;
+    boost::optional<T>                            value;
+    std::unique_ptr<detail::ContinuationBase<T&>> continuation;
 
-  bool is_ready() const {
-    return value;
-  }
-
-  void set_value(const T& v) {
-    value = v;
-    run_continuation();
-  }
-
-  void set_value(T&& v) {
-    value = std::move(v);
-    run_continuation();
-  }
-
-  void move_value_from(State& other) {
-    assert(other.value);
-
-    value = std::move(other.value);
-    run_continuation();
-  }
-
-  template<typename F>
-  add_future<result_of<F, T>> set_continuation(F&& fun) {
-    if (value) {
-      return detail::make_ready_future(fun, *value);
-    } else {
-      return detail::build_continuation(continuation, std::forward<F>(fun));
+    void swap(State<T>& other) {
+      std::swap(value,        other.value);
+      std::swap(continuation, other.continuation);
     }
-  }
 
-private:
-  void run_continuation() {
-    if (continuation) {
-      (*continuation)(*value);
-      continuation = nullptr;
+    bool is_ready() const {
+      return value;
     }
-  }
-};
 
-////////////////////////////////////////////////////////////////////////////////
-template<>
-struct Future<void>::State {
-  std::mutex                                  mutex;
-  bool                                        ready;
-  std::unique_ptr<detail::ContinuationBase<>> continuation;
-
-  State() : ready(false) {}
-
-  void swap(State& other) {
-    std::swap(ready,        other.ready);
-    std::swap(continuation, other.continuation);
-  }
-
-  bool is_ready() const {
-    return ready;
-  }
-
-  void set_value() {
-    ready = true;
-    run_continuation();
-  }
-
-  void move_value_from(State& other) {
-    assert(other.ready);
-
-    ready = other.ready;
-    run_continuation();
-  }
-
-  template<typename F>
-  add_future<result_of<F>> set_continuation(F&& fun) {
-    if (ready) {
-      return detail::make_ready_future(fun);
-    } else {
-      return detail::build_continuation(continuation, std::forward<F>(fun));
+    void set_value(const T& v) {
+      value = v;
+      run_continuation();
     }
-  }
 
-private:
-  void run_continuation() {
-    if (continuation) {
-      (*continuation)();
-      continuation = nullptr;
+    void set_value(T&& v) {
+      value = std::move(v);
+      run_continuation();
     }
-  }
-};
 
+    void move_value_from(State& other) {
+      assert(other.value);
+
+      value = std::move(other.value);
+      run_continuation();
+    }
+
+    template<typename F>
+    add_future<result_of<F, T>> set_continuation(F&& fun) {
+      detail::lock_guard lock(mutex);
+
+      if (value) {
+        return detail::make_ready_future(fun, *value);
+      } else {
+        return detail::build_continuation(continuation, std::forward<F>(fun));
+      }
+    }
+
+  private:
+    void run_continuation() {
+      if (continuation) {
+        (*continuation)(*value);
+        continuation = nullptr;
+      }
+    }
+  };
+
+  ////////////////////////////////////////////////////////////////////////////////
+  template<>
+  struct State<void> {
+    std::mutex                                  mutex;
+    bool                                        ready;
+    std::unique_ptr<detail::ContinuationBase<>> continuation;
+
+    State() : ready(false) {}
+
+    void swap(State<void>& other) {
+      std::swap(ready,        other.ready);
+      std::swap(continuation, other.continuation);
+    }
+
+    bool is_ready() const {
+      return ready;
+    }
+
+    void set_value() {
+      ready = true;
+      run_continuation();
+    }
+
+    void move_value_from(State& other) {
+      assert(other.ready);
+
+      ready = other.ready;
+      run_continuation();
+    }
+
+    template<typename F>
+    add_future<result_of<F>> set_continuation(F&& fun) {
+      detail::lock_guard lock(mutex);
+
+      if (ready) {
+        return detail::make_ready_future(fun);
+      } else {
+        return detail::build_continuation(continuation, std::forward<F>(fun));
+      }
+    }
+
+  private:
+    void run_continuation() {
+      if (continuation) {
+        (*continuation)();
+        continuation = nullptr;
+      }
+    }
+  };
+
+} // namespace detail
 
 
 ////////////////////////////////////////////////////////////////////////////////

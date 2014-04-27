@@ -48,11 +48,6 @@ namespace internal {
   template<typename F> struct result_of<F, void> {
     typedef typename std::result_of<F()>::type type;
   };
-
-  template<typename F, typename... Args> struct checked_result_of {
-    static_assert(::fry::can_call<F, Args...>{}, "F cannot be called with arguments of types Args...");
-    typedef typename result_of<F, Args...>::type type;
-  };
 }
 
 //------------------------------------------------------------------------------
@@ -60,7 +55,7 @@ namespace internal {
 // also when A is void, in which case it is the same as
 // std::result_of<T()>::type.
 template<typename... T>
-using result_of = typename internal::checked_result_of<T...>::type;
+using result_of = typename internal::result_of<T...>::type;
 
 ////////////////////////////////////////////////////////////////////////////////
 template<typename T> struct is_void : std::is_same<T, void> {};

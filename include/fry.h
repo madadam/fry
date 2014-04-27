@@ -10,6 +10,6 @@
 
 #include "fry/future.h"
 #include "fry/result.h"
-#include "fry/result_future.h"
+#include "fry/future_result.h"
 
 #endif // __FRY_H__

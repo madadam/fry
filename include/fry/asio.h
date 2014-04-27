@@ -35,7 +35,16 @@ Result<T> failure(const boost::system::error_code& code) {
 }
 
 template<typename T>
-using FutureResult = Future<Result<T>>;
+using Future = ::fry::Future<Result<T>>;
+
+template<typename T>
+Future<T> make_ready_future(T&& value) {
+  return ::fry::make_ready_future(Result<T>(std::forward<T>(value)));
+}
+
+inline Future<void> make_ready_future() {
+  return ::fry::make_ready_future(Result<void>());
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 struct UseFuture {};
@@ -58,7 +67,7 @@ public:
     }
   }
 
-  Future<Result<T>> get_future() const {
+  Future<T> get_future() const {
     return _promise->get_future();
   }
 
@@ -81,7 +90,7 @@ public:
     }
   }
 
-  Future<Result<void>> get_future() const {
+  Future<void> get_future() const {
     return _promise->get_future();
   }
 

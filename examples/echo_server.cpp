@@ -18,17 +18,17 @@ public:
   void receive() {
     _socket.async_receive_from(
       buffer(_data, max_length), _sender_endpoint, asio::use_future
-    ).then(on_success([=](std::size_t length) {
+    ).then([=](std::size_t length) {
       if (length > 0) {
         return _socket.async_send_to( buffer(_data, length)
                                     , _sender_endpoint
                                     , asio::use_future);
       } else {
-        return make_ready_future(asio::success(std::size_t(0)));
+        return asio::make_ready_future(std::size_t(0));
       }
-    })).then(always([=]() {
+    }).always([=]() {
       receive();
-    }));
+    });
   }
 
   // void do_receive()
