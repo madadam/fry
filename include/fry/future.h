@@ -40,6 +40,9 @@ namespace internal {
 
   template<typename T> struct remove_future            { typedef T type; };
   template<typename T> struct remove_future<Future<T>> { typedef T type; };
+
+  template<typename F> struct future_type;
+  template<typename T> struct future_type<Future<T>> { typedef T type; };
 }
 
 //------------------------------------------------------------------------------
@@ -51,8 +54,12 @@ template<typename T>
 using remove_future = typename internal::remove_future<T>::type;
 
 //------------------------------------------------------------------------------
-template<typename U> struct is_future : std::false_type {};
-template<typename T> struct is_future<Future<T>> : std::true_type {};
+template<typename T>
+using future_type = typename internal::future_type<T>::type;
+
+//------------------------------------------------------------------------------
+template<typename U> struct is_future : public std::false_type {};
+template<typename T> struct is_future<Future<T>> : public std::true_type {};
 
 
 

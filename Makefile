@@ -9,10 +9,14 @@ COMPILER := g++
 COMMON_DEPS := include/fry/helpers.h       \
 					     include/fry/future.h        \
 					     include/fry/result.h        \
-					     include/fry/future_result.h
+					     include/fry/future_result.h \
+					     include/fry/combinators.h
 
 ################################################################################
-TESTS := tests/future_test tests/result_test tests/future_result_test
+TESTS := tests/future_test 				\
+				 tests/result_test 				\
+				 tests/future_result_test \
+				 tests/combinators_test
 
 TEST_CFLAGS := $(CFLAGS)                  \
 							 -DBOOST_TEST_DYN_LINK 			\
@@ -40,6 +44,9 @@ tests/result_test: tests/result_test.cpp $(TEST_DEPS)
 	$(COMPILER) $(TEST_CFLAGS) -o $@ $< $(TEST_LFLAGS)
 
 tests/future_result_test: tests/future_result_test.cpp $(TEST_DEPS)
+	$(COMPILER) $(TEST_CFLAGS) -o $@ $< $(TEST_LFLAGS)
+
+tests/combinators_test: tests/combinators_test.cpp $(TEST_DEPS)
 	$(COMPILER) $(TEST_CFLAGS) -o $@ $< $(TEST_LFLAGS)
 
 examples/echo_server: examples/echo_server.cpp $(EXAMPLE_DEPS)

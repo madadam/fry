@@ -7,6 +7,7 @@ using namespace fry;
 using ip::udp;
 
 ////////////////////////////////////////////////////////////////////////////////
+
 class Server {
 public:
   Server(io_service& io_service, short port)
@@ -52,7 +53,7 @@ public:
   // {
   //   _socket.async_send_to(
   //       boost::asio::buffer(_data, length), _sender_endpoint,
-  //       [this](boost::system::error_code /*ec*/, std::size_t /*bytes_sent*/)
+  //       [this](boost::system::error_code, std::size_t)
   //       {
   //         do_receive();
   //       });
@@ -66,7 +67,6 @@ private:
   udp::endpoint _sender_endpoint;
   char          _data[max_length];
 };
-
 
 int main(int argc, char** argv) {
   if (argc != 2) {

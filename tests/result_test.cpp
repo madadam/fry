@@ -19,6 +19,7 @@ BOOST_AUTO_TEST_CASE(test_conversion_to_bool_of_non_void_result) {
   BOOST_CHECK( success);
   BOOST_CHECK(!failure);
 }
+
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(test_conversion_to_bool_of_void_result) {
   Result<void, TestError> success;
@@ -126,4 +127,16 @@ BOOST_AUTO_TEST_CASE(test_if_failure) {
   });
 
   BOOST_CHECK_EQUAL(3, probe);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(test_return_error) {
+  Result<int, TestError> success(1);
+  Result<int, TestError> failure(error1);
+
+  auto result1 = success.if_success([](int value) { return error1; });
+  BOOST_CHECK_EQUAL(failure, result1);
+
+  auto result2 = failure.if_failure([](TestError) { return error1; });
+  BOOST_CHECK_EQUAL(failure, result2);
 }

@@ -11,5 +11,6 @@
 #include "fry/future.h"
 #include "fry/result.h"
 #include "fry/future_result.h"
+#include "fry/combinators.h"
 
 #endif // __FRY_H__

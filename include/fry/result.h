@@ -25,46 +25,63 @@ template<typename E, typename T> Result<T, E> make_result(Result<T, E>);
 ////////////////////////////////////////////////////////////////////////////////
 // Traits
 namespace internal {
-  template<typename T, typename E>
+  template<typename T, typename E, typename D>
   struct add_result { typedef Result<T, E> type; };
 
-  template<typename T, typename E>
-  struct add_result<Result<T, E>, E> { typedef Result<T, E> type; };
+  template<typename T, typename E, typename D>
+  struct add_result<Result<T, E>, E, D> { typedef Result<T, E> type; };
+
+  template<typename E, typename D>
+  struct add_result<E, E, D> { typedef Result<D, E> type; };
 }
 
-template<typename T, typename E>
-using add_result = typename internal::add_result<T, E>::type;
+template<typename T, typename E, typename D = void>
+using add_result = typename internal::add_result<T, E, D>::type;
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
 namespace detail {
-  template<typename E, typename F, typename... Args>
-  enable_if< !is_void<result_of<F, Args...>>{}
+  template<typename T, typename E, typename F, typename... Args>
+  enable_if<    !is_void<result_of<F, Args...>>{}
+             && !std::is_same<result_of<F, Args...>, E>{}
            , add_result<result_of<F, Args...>, E>>
   make_result(F&& fun, Args&&... args) {
     return ::fry::make_result<E>(fun(std::forward<Args>(args)...));
   }
 
-  template<typename E, typename F, typename... Args>
-  enable_if< is_void<result_of<F, Args...>>{}, Result<void, E>>
+  template<typename T, typename E, typename F, typename... Args>
+  enable_if<std::is_same<result_of<F, Args...>, E>{}, Result<T, E>>
+  make_result(F&& fun, Args&&... args) {
+    return Result<T, E>(fun(std::forward<Args>(args)...));
+  }
+
+  template<typename T, typename E, typename F, typename... Args>
+  enable_if<is_void<result_of<F, Args...>>{}, Result<void, E>>
   make_result(F&& fun, Args&&... args) {
     fun(std::forward<Args>(args)...);
     return {};
   }
 
   //----------------------------------------------------------------------------
-  template<typename T, typename E, typename F, typename R = result_of<F, E>>
-  enable_if<!is_void<R>{}, Result<T, E>>
-  make_result_from_error(F&& fun, const E& error) {
+  template<typename T, typename E, typename F>
+  enable_if< !is_void<result_of<F, E>>{} && !std::is_same<result_of<F, E>, E>{}
+           , Result<T, E>>
+  make_result(F&& fun, const E& error) {
     return ::fry::make_result<E>(fun(error));
   }
 
-  template<typename T, typename E, typename F, typename R = result_of<F, E>>
-  enable_if<is_void<R>{}, Result<T, E>>
-  make_result_from_error(F&& fun, const E& error) {
+  template<typename T, typename E, typename F>
+  enable_if<is_void<result_of<F, E>>{}, Result<T, E>>
+  make_result(F&& fun, const E& error) {
     fun(error);
     return Result<T, E>(error);
+  }
+
+  template<typename T, typename E, typename F>
+  enable_if<std::is_same<result_of<F, E>, E>{}, Result<T, E>>
+  make_result(F&& fun, const E& error) {
+    return Result<T, E>(fun(error));
   }
 
   //----------------------------------------------------------------------------
@@ -187,12 +204,12 @@ public:
 
   //----------------------------------------------------------------------------
   template<typename F>
-  add_result<result_of<F, const T&>, E>
+  add_result<result_of<F, T>, E, T>
   if_success(F&& fun) const {
-    typedef add_result<result_of<F, const T&>, E> R;
+    typedef add_result<result_of<F, T>, E, T> R;
 
     return match(
-        [=](const T& value) { return detail::make_result<E>(fun, value); }
+        [=](const T& value) { return detail::make_result<T, E>(fun, value); }
       , [] (const E& error) { return R(error); }
     );
   }
@@ -203,14 +220,15 @@ public:
     typedef result_of<F, E> R;
     static_assert(    std::is_same<R, Result<T, E>>{}
                    || std::is_same<R, T>{}
+                   || std::is_same<R, E>{}
                    || std::is_same<R, void>{}
                  , "the callbacks return type must be either the type of *this"
-                   ", the value_type of *this or void");
+                   ", the value_type of *this, the error_type of *this or void");
 
     return match(
         [] (const T& value) { return Result<T, E>(value); }
       , [=](const E& error) {
-          return detail::make_result_from_error<T, E>(fun, error);
+          return detail::make_result<T, E>(fun, error);
         }
     );
   }
@@ -290,9 +308,9 @@ public:
   template<typename F>
   add_result<result_of<F>, E> if_success(F&& fun) const {
     if (_error) {
-      return add_result<result_of<F>, E>{ *_error };
+      return add_result<result_of<F>, E, void>{ *_error };
     } else {
-      return detail::make_result<E>(fun);
+      return detail::make_result<void, E>(fun);
     }
   }
 
@@ -301,12 +319,13 @@ public:
   Result<void, E> if_failure(F&& fun) const {
     typedef result_of<F, E> R;
     static_assert(    std::is_same<R, Result<void, E>>{}
+                   || std::is_same<R, E>{}
                    || std::is_same<R, void>{}
                  , "the callback return type must be either the type of *this"
-                   " or void");
+                   ", error_type of *this or void");
 
     if (_error) {
-      return detail::make_result<E>(fun, *_error);
+      return detail::make_result<void, E>(fun, *_error);
     } else {
       return {};
     }
