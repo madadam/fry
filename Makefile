@@ -6,11 +6,12 @@ LFLAGS :=
 COMPILER := g++
 # COMPILER := clang
 
-COMMON_DEPS := include/fry/helpers.h       \
+COMMON_DEPS := include/fry/combinators.h   \
+ 							 include/fry/either.h        \
 					     include/fry/future.h        \
-					     include/fry/result.h        \
 					     include/fry/future_result.h \
-					     include/fry/combinators.h
+							 include/fry/helpers.h       \
+					     include/fry/result.h        \
 
 ################################################################################
 TESTS := tests/future_test 				\

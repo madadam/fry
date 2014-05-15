@@ -16,6 +16,7 @@
 
 #include "future.h"
 #include "result.h"
+#include "combinators.h"
 
 
 namespace fry { namespace asio {
@@ -25,16 +26,6 @@ template<typename T>
 using Result = ::fry::Result<T, boost::system::error_code>;
 
 template<typename T>
-Result<typename std::decay<T>::type> success(T&& value) {
-  return Result<typename std::decay<T>::type>(value);
-}
-
-template<typename T>
-Result<T> failure(const boost::system::error_code& code) {
-  return Result<T>(code);
-}
-
-template<typename T>
 using Future = ::fry::Future<Result<T>>;
 
 template<typename T>
@@ -42,8 +33,30 @@ Future<T> make_ready_future(T&& value) {
   return ::fry::make_ready_future(Result<T>(std::forward<T>(value)));
 }
 
+template<typename T>
+Future<T> make_ready_future(const boost::system::error_code& ec) {
+  return ::fry::make_ready_future(Result<T>(ec));
+}
+
 inline Future<void> make_ready_future() {
   return ::fry::make_ready_future(Result<void>());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template<typename Action>
+result_of<Action> repeat_until_failure(Action&& action) {
+  using Result = future_type<result_of<Action>>;
+  return repeat_until(std::forward<Action>(action), [](const Result& r) {
+    return !r;
+  });
+}
+
+template<typename Action>
+result_of<Action> repeat_until_success(Action&& action) {
+  using Result = future_type<result_of<Action>>;
+  return repeat_until(std::forward<Action>(action), [](const Result& r) {
+    return (bool) r;
+  });
 }
 
 ////////////////////////////////////////////////////////////////////////////////

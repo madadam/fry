@@ -9,7 +9,7 @@
 #define __FRY__RESULT_H__
 
 #include <boost/optional.hpp>
-#include "helpers.h"
+#include "either.h"
 
 namespace fry {
 
@@ -83,19 +83,13 @@ namespace detail {
   make_result(F&& fun, const E& error) {
     return Result<T, E>(fun(error));
   }
-
-  //----------------------------------------------------------------------------
-  template<typename T>
-  constexpr T max(T a, T b) {
-    return a > b ? a : b;
-  }
 }
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
 template<typename T, typename E>
-class Result {
+class Result : public Either<T, E> {
   static_assert(!std::is_same<T, E>{}, "value type and error type must be different");
 
 public:
@@ -103,103 +97,12 @@ public:
   typedef T value_type;
   typedef E error_type;
 
-  //----------------------------------------------------------------------------
-  Result() : _success(true) {
-    assign(T());
-  }
-
-  //----------------------------------------------------------------------------
-  explicit Result(const T& value) : _success(true) { assign(value);            }
-  explicit Result(T&& value)      : _success(true) { assign(std::move(value)); }
-
-  explicit Result(const E& error) : _success(false) { assign(error); }
-  explicit Result(E&& error)      : _success(false) { assign(std::move(error)); }
-
-  //----------------------------------------------------------------------------
-  ~Result() {
-    destroy();
-  }
-
-  //----------------------------------------------------------------------------
-  Result(const Result<T, E>& other) : _success(other._success) {
-    if (other._success) {
-      assign(other.access<T>());
-    } else {
-      assign(other.access<E>());
-    }
-  }
-
-  Result<T, E>& operator = (const Result<T, E>& other) {
-    if (&other != this) {
-      if (_success) {
-        if (other._success) {
-          access<T>() = other.access<T>();
-        } else {
-          destroy();
-          assign(other.access<E>());
-          _success = false;
-        }
-      } else {
-        if (other._success) {
-          destroy();
-          assign(other.access<T>());
-          _success = true;
-        } else {
-          access<E>() = other.access<E>();
-        }
-      }
-    }
-
-    return *this;
-  }
-
-  //----------------------------------------------------------------------------
-  Result(Result<T, E>&& other) : _success(other._success) {
-    if (other._success) {
-      assign(std::move(other.access<T>()));
-    } else {
-      assign(std::move(other.access<E>()));
-    }
-  }
-
-  Result<T, E>& operator = (Result<T, E>&& other) {
-    if (&other != this) {
-      if (_success) {
-        if (other._success) {
-          access<T>() = std::move(other.access<T>());
-        } else {
-          destroy();
-          assign(std::move(other.access<E>()));
-          _success = false;
-        }
-      } else {
-        if (other._success) {
-          destroy();
-          assign(std::move(other.access<T>()));
-          _success = true;
-        } else {
-          access<E>() = other.access<E>();
-        }
-      }
-    }
-
-    return *this;
-  }
-
-  //----------------------------------------------------------------------------
-  template<typename SF, typename FF>
-  typename std::common_type<result_of<SF, T>, result_of<FF, E>>::type
-  match(SF&& on_success, FF&& on_failure) const {
-    if (_success) {
-      return on_success(access<T>());
-    } else {
-      return on_failure(access<E>());
-    }
-  }
+  using Either<T, E>::Either;
+  using Either<T, E>::match;
 
   //----------------------------------------------------------------------------
   explicit operator bool () const {
-    return _success;
+    return this->type() == Either<T, E>::Type::first;
   }
 
   //----------------------------------------------------------------------------
@@ -238,40 +141,6 @@ public:
     return match( []  (const T& value) { return value; }
                 , [&a](const E&)       { return a;     });
   }
-
-private:
-
-  template<typename U>
-  U& access() {
-    return *static_cast<U*>(static_cast<void*>(&_storage));
-  }
-
-  template<typename U>
-  const U& access() const {
-    return *static_cast<const U*>(static_cast<const void*>(&_storage));
-  }
-
-  template<typename U>
-  void assign(U&& stuff) {
-    new (&_storage) remove_reference<U>(std::forward<U>(stuff));
-  }
-
-  void destroy() {
-    if (_success) {
-      access<T>().~T();
-    } else {
-      access<E>().~E();
-    }
-  }
-
-private:
-  typedef typename std::aligned_storage<
-              detail::max(sizeof(T), sizeof(E))
-            , detail::max(alignof(T), alignof(E))
-          >::type Storage;
-
-  bool    _success;
-  Storage _storage;
 };
 
 

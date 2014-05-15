@@ -320,8 +320,10 @@ namespace detail {
   private:
     void run_continuation() {
       if (continuation) {
-        (*continuation)(*value);
-        continuation = nullptr;
+        // Unset the continuation before running it, to prevent possible
+        // infinite recursion.
+        auto c = std::move(continuation);
+        (*c)(*value);
       }
     }
   };
@@ -370,8 +372,8 @@ namespace detail {
   private:
     void run_continuation() {
       if (continuation) {
-        (*continuation)();
-        continuation = nullptr;
+        auto c = std::move(continuation);
+        (*c)();
       }
     }
   };
