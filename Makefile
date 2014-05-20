@@ -6,18 +6,22 @@ LFLAGS :=
 COMPILER := g++
 # COMPILER := clang
 
-COMMON_DEPS := include/fry/combinators.h   \
- 							 include/fry/either.h        \
+COMMON_DEPS := include/fry/either.h        \
 					     include/fry/future.h        \
 					     include/fry/future_result.h \
 							 include/fry/helpers.h       \
+							 include/fry/repeat_until.h  \
 					     include/fry/result.h        \
+					     include/fry/when_all.h      \
+					     include/fry/when_any.h
 
 ################################################################################
 TESTS := tests/future_test 				\
 				 tests/result_test 				\
 				 tests/future_result_test \
-				 tests/combinators_test
+				 tests/repeat_until_test  \
+				 tests/when_all_test      \
+				 tests/when_any_test
 
 TEST_CFLAGS := $(CFLAGS)                  \
 							 -DBOOST_TEST_DYN_LINK 			\
@@ -38,16 +42,7 @@ all: $(TESTS) $(EXAMPLES)
 tests: $(TESTS)
 	@for test in $(TESTS);	do ./$$test;	done
 
-tests/future_test: tests/future_test.cpp $(TEST_DEPS)
-	$(COMPILER) $(TEST_CFLAGS) -o $@ $< $(TEST_LFLAGS)
-
-tests/result_test: tests/result_test.cpp $(TEST_DEPS)
-	$(COMPILER) $(TEST_CFLAGS) -o $@ $< $(TEST_LFLAGS)
-
-tests/future_result_test: tests/future_result_test.cpp $(TEST_DEPS)
-	$(COMPILER) $(TEST_CFLAGS) -o $@ $< $(TEST_LFLAGS)
-
-tests/combinators_test: tests/combinators_test.cpp $(TEST_DEPS)
+tests/%: tests/%.cpp $(TEST_DEPS)
 	$(COMPILER) $(TEST_CFLAGS) -o $@ $< $(TEST_LFLAGS)
 
 examples/echo_server: examples/echo_server.cpp $(EXAMPLE_DEPS)

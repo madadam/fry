@@ -9,7 +9,7 @@
 
 #include "test_helpers.h"
 #include "fry/future.h"
-#include "fry/combinators.h"
+#include "fry/when_any.h"
 
 using namespace std;
 using namespace fry;
@@ -59,50 +59,4 @@ BOOST_AUTO_TEST_CASE(test_when_any_with_range) {
 
   BOOST_CHECK(called);
 }
-
-////////////////////////////////////////////////////////////////////////////////
-BOOST_AUTO_TEST_CASE(test_when_all) {
-  Locked<bool> called{false};
-
-  Promise<int> p1;
-  Promise<int> p2;
-
-  auto f1 = p1.get_future();
-  auto f2 = p2.get_future();
-
-  when_all(f1, f2).then([&](const tuple<int, int>& values) {
-    called = true;
-    BOOST_CHECK_EQUAL(1000, get<0>(values));
-    BOOST_CHECK_EQUAL(2000, get<1>(values));
-  });
-
-  BOOST_CHECK(!called);
-
-  p1.set_value(1000);
-  BOOST_CHECK(!called);
-
-  p2.set_value(2000);
-  BOOST_CHECK(called);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-BOOST_AUTO_TEST_CASE(test_repeat_until) {
-  Locked<int>  counter{0};
-  Locked<bool> called{false};
-
-  auto action = [&]() {
-    ++counter;
-    return make_ready_future((int) counter);
-  };
-
-  repeat_until(action, [](int value) {
-    return value > 10;
-  }).then([&](int value) {
-    called = true;
-    BOOST_CHECK_EQUAL(value, 11);
-  });
-
-  BOOST_CHECK(called);
-}
-
 

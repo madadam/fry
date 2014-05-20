@@ -119,6 +119,55 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  Either<First, Second>& operator = (const First& other) {
+    if (_type == Type::first) {
+      access<First>() = other;
+    } else {
+      destroy();
+      assign(other);
+      _type = Type::first;
+    }
+
+    return *this;
+  }
+
+  Either<First, Second>& operator = (First&& other) {
+    if (_type == Type::first) {
+      access<First>() = std::move(other);
+    } else {
+      destroy();
+      assign(std::move(other));
+      _type = Type::first;
+    }
+
+    return *this;
+  }
+
+  Either<First, Second>& operator = (const Second& other) {
+    if (_type == Type::second) {
+      access<Second>() = other;
+    } else {
+      destroy();
+      assign(other);
+      _type = Type::second;
+    }
+
+    return *this;
+  }
+
+  Either<First, Second>& operator = (Second&& other) {
+    if (_type == Type::second) {
+      access<Second>() = std::move(other);
+    } else {
+      destroy();
+      assign(std::move(other));
+      _type = Type::second;
+    }
+
+    return *this;
+  }
+
+  //----------------------------------------------------------------------------
   Type type() const {
     return _type;
   }
