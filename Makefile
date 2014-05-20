@@ -16,12 +16,13 @@ COMMON_DEPS := include/fry/either.h        \
 					     include/fry/when_any.h
 
 ################################################################################
-TESTS := tests/future_test 				\
-				 tests/result_test 				\
-				 tests/future_result_test \
-				 tests/repeat_until_test  \
-				 tests/when_all_test      \
-				 tests/when_any_test
+TESTS := tests/future_test 						\
+				 tests/result_test 						\
+				 tests/future_result_test 		\
+				 tests/repeat_until_test  		\
+				 tests/when_all_test      		\
+				 tests/when_any_test      		\
+				 tests/when_all_success_test
 
 TEST_CFLAGS := $(CFLAGS)                  \
 							 -DBOOST_TEST_DYN_LINK 			\

@@ -8,6 +8,7 @@
 #ifndef __FRY__HELPERS_H__
 #define __FRY__HELPERS_H__
 
+#include <tuple>
 #include <type_traits>
 
 namespace fry {
@@ -20,6 +21,10 @@ using enable_if = typename std::enable_if<B, T>::type;
 // Shortcut for std::remove_reference<T>::type
 template<typename T>
 using remove_reference = typename std::remove_reference<T>::type;
+
+// Shortcut for std::tuple_element<I, T>::type
+template<std::size_t Index, typename Tuple>
+using tuple_element = typename std::tuple_element<Index, Tuple>::type;
 
 ////////////////////////////////////////////////////////////////////////////////
 namespace internal {

@@ -17,59 +17,64 @@
 namespace fry {
 
 namespace detail {
-  //----------------------------------------------------------------------------
-  template<typename T>
-  struct AnyContinuation {
-    struct State {
-      Promise<T>        promise;
-      std::atomic_flag  resolved;
+namespace any {
 
-      State() {
-        resolved.clear();
-      }
-    };
+//------------------------------------------------------------------------------
+template<typename T>
+struct Continuation {
+  struct State {
+    Promise<T>        promise;
+    std::atomic_flag  resolved;
 
-    std::shared_ptr<State> state;
-
-    AnyContinuation() : state(std::make_shared<State>()) {}
-
-    void operator () (const T& value) {
-      // TODO: learn about the various memory order flags and use the most
-      // appropriate one.
-      if (!state->resolved.test_and_set()) {
-        state->promise.set_value(value);
-      }
-    }
-
-    Future<T> get_future() {
-      return state->promise.get_future();
+    State() {
+      resolved.clear();
     }
   };
 
-  //----------------------------------------------------------------------------
-  template<typename T, typename F, typename... Fs>
-  void assign_any_handler(AnyContinuation<T> handler, F& first, Fs&... rest)
-  {
-    first.then(handler);
-    assign_any_handler(handler, rest...);
+  std::shared_ptr<State> state;
+
+  Continuation() : state(std::make_shared<State>()) {}
+
+  void operator () (const T& value) {
+    // TODO: learn about the various memory order flags and use the most
+    // appropriate one.
+    if (!state->resolved.test_and_set()) {
+      state->promise.set_value(value);
+    }
   }
 
-  template<typename T>
-  void assign_any_handler(AnyContinuation<T>) {};
+  Future<T> get_future() {
+    return state->promise.get_future();
+  }
+};
 
-  //----------------------------------------------------------------------------
-  template<typename R>
-  using value_type = typename std::iterator_traits<
-                       decltype(std::begin(std::declval<R>()))
-                     >::value_type;
+//------------------------------------------------------------------------------
+template<typename T, typename F, typename... Fs>
+void assign(Continuation<T> handler, F&& first, Fs&&... rest)
+{
+  first.then(handler);
+  assign(handler, std::move(rest)...);
 }
+
+template<typename T>
+void assign(Continuation<T>) {};
+
+} // namespace any
+
+//------------------------------------------------------------------------------
+template<typename R>
+using value_type = typename std::iterator_traits<
+                     decltype(std::begin(std::declval<R>()))
+                   >::value_type;
+
+} // namespace detail
 
 ////////////////////////////////////////////////////////////////////////////////
 template<typename Range>
 detail::value_type<Range> when_any(Range& futures) {
   using T = future_type<detail::value_type<Range>>;
 
-  detail::AnyContinuation<T> handler;
+  detail::any::Continuation<T> handler;
 
   for (auto&& future : futures) {
     future.then(handler);
@@ -80,12 +85,12 @@ detail::value_type<Range> when_any(Range& futures) {
 
 template<typename Future, typename... Futures>
 typename std::common_type<Future, Futures...>::type
-when_any(Future& f0, Future& f1, Futures&... fs)
+when_any(Future&& f0, Future&& f1, Futures&&... fs)
 {
   using T = future_type<typename std::common_type<Future, Futures...>::type>;
 
-  detail::AnyContinuation<T> handler;
-  detail::assign_any_handler(handler, f0, f1, fs...);
+  detail::any::Continuation<T> handler;
+  detail::any::assign(handler, std::move(f0), std::move(f1), std::move(fs)...);
 
   return handler.get_future();
 }

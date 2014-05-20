@@ -24,7 +24,7 @@ BOOST_AUTO_TEST_CASE(test_when_all) {
   auto f1 = p1.get_future();
   auto f2 = p2.get_future();
 
-  when_all(f1, f2).then([&](const tuple<int, int>& values) {
+  when_all(std::move(f1), std::move(f2)).then([&](const tuple<int, int>& values) {
     called = true;
     BOOST_CHECK_EQUAL(1000, get<0>(values));
     BOOST_CHECK_EQUAL(2000, get<1>(values));
