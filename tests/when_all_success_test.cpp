@@ -74,3 +74,22 @@ BOOST_AUTO_TEST_CASE(test_when_all_success_on_failure) {
   BOOST_CHECK(!success_called);
   BOOST_CHECK(failure_called);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(test_when_all_success_with_void) {
+  Locked<bool> called{false};
+
+  Promise<Result<int,  TestError>> p1;
+  Promise<Result<void, TestError>> p2;
+
+  when_all_success(
+    p1.get_future(), p2.get_future()
+  ).then([&](const tuple<int, Void>&) {
+    called = true;
+  });
+
+  p1.set_value(Result<int,  TestError>(1));
+  p2.set_value(Result<void, TestError>());
+
+  BOOST_CHECK(called);
+}

@@ -21,42 +21,72 @@ namespace detail { namespace all_success {
   //----------------------------------------------------------------------------
   template<typename Error, typename... Values>
   struct State {
-    typedef std::tuple<Values...> Tuple;
-    typedef Result<Tuple, Error>  TupleResult;
+    typedef std::tuple<Values...>               InputTuple;
+    typedef std::tuple<replace_void<Values>...> OutputTuple;
+
+    typedef Result<OutputTuple, Error>          OutputResult;
 
     template<std::size_t Index>
-    using ElementResult = Result<tuple_element<Index, Tuple>, Error>;
+    using InputValue = tuple_element<Index, InputTuple>;
 
+    template<std::size_t Index>
+    using InputResult = Result<InputValue<Index>, Error>;
+
+    //--------------------------------------------------------------------------
+    template<std::size_t Index, typename Enable = void>
+    struct Setter;
+
+    template<std::size_t Index>
+    struct Setter<Index, enable_if<!is_void<InputValue<Index>>{}>> {
+      State& state;
+
+      void operator () (const InputValue<Index>& value) {
+        std::get<Index>(state.values) = value;
+        state.on_success();
+      }
+    };
+
+    template<std::size_t Index>
+    struct Setter<Index, enable_if<is_void<InputValue<Index>>{}>> {
+      State& state;
+
+      void operator () () {
+        std::get<Index>(state.values) = Void();
+        state.on_success();
+      }
+    };
+
+    //--------------------------------------------------------------------------
     std::mutex            mutex;
-    Tuple                 values;
-    std::size_t           num_resolved;
-    Promise<TupleResult>  promise;
+    OutputTuple           values;
+    std::size_t           num_success;
+    Promise<OutputResult> promise;
 
-    State() : num_resolved(0) {}
+    //--------------------------------------------------------------------------
+    State() : num_success(0) {}
 
-    Future<TupleResult> get_future() {
+    Future<OutputResult> get_future() {
       return promise.get_future();
     }
 
     template<std::size_t Index>
     void
-    set(const ElementResult<Index>& result)
+    set(const InputResult<Index>& result)
     {
       std::lock_guard<std::mutex> guard(mutex);
 
       result.match(
-          [=](const tuple_element<Index, Tuple>& value) {
-            std::get<Index>(values) = value;
-            ++num_resolved;
-
-            if (num_resolved == std::tuple_size<Tuple>::value) {
-              promise.set_value(TupleResult(std::move(values)));
-            }
-          }
-        , [=](const Error& error) {
-            promise.set_value(TupleResult(error));
-          }
+          Setter<Index>{ *this }
+        , [=](const Error& error) { promise.set_value(OutputResult(error)); }
       );
+    }
+
+    void on_success() {
+      ++num_success;
+
+      if (num_success == std::tuple_size<OutputTuple>::value) {
+        promise.set_value(OutputResult(std::move(values)));
+      }
     }
   };
 
@@ -64,7 +94,7 @@ namespace detail { namespace all_success {
   template<std::size_t Index, typename Error, typename... Values>
   struct Continuation {
     typedef Result<tuple_element<Index, std::tuple<Values...>>, Error>
-            ElementResult;
+            InputResult;
 
     std::shared_ptr<State<Error, Values...>> state;
 
@@ -72,7 +102,7 @@ namespace detail { namespace all_success {
       : state(state)
     {}
 
-    void operator () (const ElementResult& result) {
+    void operator () (const InputResult& result) {
       state->template set<Index>(result);
     }
   };
@@ -96,13 +126,13 @@ namespace detail { namespace all_success {
 }} // namespace detail::all_success
 
 template<typename Error, typename... Values>
-Future<Result<std::tuple<Values...>, Error>>
+Future<Result<std::tuple<replace_void<Values>...>, Error>>
 when_all_success(Future<Result<Values, Error>>&&... fs) {
   return when_all_success(std::make_tuple(std::move(fs)...));
 }
 
 template<typename Error, typename... Values>
-Future<Result<std::tuple<Values...>, Error> >
+Future<Result<std::tuple<replace_void<Values>...>, Error> >
 when_all_success(std::tuple<Future<Result<Values, Error>>...>&& fs) {
   auto state = std::make_shared<detail::all_success::State<Error, Values...>>();
   detail::all_success::assign<0>(state, std::move(fs));

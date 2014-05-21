@@ -9,10 +9,12 @@
 #define __FRY_H__
 
 #include "fry/future.h"
-#include "fry/result.h"
-#include "fry/future_result.h"
 #include "fry/repeat_until.h"
 #include "fry/when_all.h"
 #include "fry/when_any.h"
+
+#include "fry/result.h"
+#include "fry/future_result.h"
+#include "fry/when_all_success.h"
 
 #endif // __FRY_H__

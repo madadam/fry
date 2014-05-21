@@ -45,7 +45,6 @@ struct can_call<F, void> : decltype(internal::can_call<F>(0)) {};
 
 ////////////////////////////////////////////////////////////////////////////////
 namespace internal {
-  //----------------------------------------------------------------------------
   template<typename F, typename... Args> struct result_of {
     typedef typename std::result_of<F(Args...)>::type type;
   };
@@ -55,7 +54,6 @@ namespace internal {
   };
 }
 
-//------------------------------------------------------------------------------
 // result_of<T, A> is the same as std::result_of<T(A0)>::type, but it works
 // also when A is void, in which case it is the same as
 // std::result_of<T()>::type.
@@ -64,6 +62,18 @@ using result_of = typename internal::result_of<T...>::type;
 
 ////////////////////////////////////////////////////////////////////////////////
 template<typename T> struct is_void : std::is_same<T, void> {};
+
+// Dummy type used as a placeholder for void where void cannot be used.
+struct Void {};
+
+namespace internal {
+  template<typename T> struct replace_void       { typedef T    type; };
+  template<>           struct replace_void<void> { typedef Void type; };
+}
+
+// If T is void, evaluates to the Void dummy type, otherwise evaluates to T.
+template<typename T>
+using replace_void = typename internal::replace_void<T>::type;
 
 } // namespace fry
 
