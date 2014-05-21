@@ -256,10 +256,13 @@ private:
   }
 
 private:
-  typedef typename std::aligned_storage<
-              detail::max(sizeof(First), sizeof(First))
-            , detail::max(alignof(Second), alignof(Second))
-          >::type Storage;
+  union Union {
+    First  first;
+    Second second;
+  };
+
+  typedef typename std::aligned_storage<sizeof(Union), alignof(Union)>::type
+          Storage;
 
   Type    _type;
   Storage _storage;
