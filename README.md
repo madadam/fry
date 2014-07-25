@@ -3,7 +3,6 @@ FRY - non-blocking Futures for C++
 
 TODO: write something useful here.
 
-TOTO
+TODO
 ----------------------------------
-- Future combinators (when_all, when_any)
 - Multi-value futures (Future of tuple + syntactic sugar)
