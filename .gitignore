@@ -1,6 +1,6 @@
-tests/future_test
-tests/result_test
-tests/future_result_test
+tests/*
+!tests/*.cpp
+!tests/*.h
 
 examples/echo_server
 examples/echo_client

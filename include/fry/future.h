@@ -117,10 +117,15 @@ public:
     : _state(std::make_shared<typename detail::State<T>>())
   {}
 
-  Promise(Promise<T>&& other) = default;
-
   Promise(const Promise<T>&) = delete;
   Promise<T>& operator = (const Promise<T>&) = delete;
+
+  Promise(Promise<T>&& other) = default;
+
+  Promise<T>& operator = (Promise<T>&& other) {
+    _state = std::move(other._state);
+    return *this;
+  }
 
   Future<T> get_future() const {
     assert(_state);
