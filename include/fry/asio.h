@@ -29,8 +29,10 @@ template<typename T>
 using Future = ::fry::Future<Result<T>>;
 
 template<typename T>
-Future<T> make_ready_future(T&& value) {
-  return ::fry::make_ready_future(Result<T>(std::forward<T>(value)));
+Future<typename std::decay<T>::type> make_ready_future(T&& value) {
+  return ::fry::make_ready_future(
+    Result<typename std::decay<T>::type>(std::forward<T>(value))
+  );
 }
 
 template<typename T>
