@@ -18,6 +18,13 @@ namespace detail {
   constexpr T max(T a, T b) {
     return a > b ? a : b;
   }
+
+// Workaround for bug in libc++ where std::common_type does not work with void.
+  template<typename T0, typename T1>
+  struct common_type : std::common_type<T0, T1> {};
+
+  template<>
+  struct common_type<void, void> { typedef void type; };
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -176,7 +183,7 @@ public:
   template< typename F1, typename F2
           , typename = enable_if<   can_call<F1, const First&>()
                                  && can_call<F2, const Second&>()>>
-  typename std::common_type<result_of<F1, First>, result_of<F2, Second>>::type
+  typename detail::common_type<result_of<F1, First>, result_of<F2, Second>>::type
   match(F1&& first, F2&& second) const {
     switch (_type) {
       case Type::first:
@@ -191,7 +198,7 @@ public:
                                  && !can_call<F1, const First&>()
                                  &&  can_call<F2, Second&>()
                                  && !can_call<F2, const Second&>()>>
-  typename std::common_type<result_of<F1, First&>, result_of<F2, Second&>>::type
+  typename detail::common_type<result_of<F1, First&>, result_of<F2, Second&>>::type
   match(F1&& first, F2&& second) {
     switch (_type) {
       case Type::first:
@@ -205,7 +212,7 @@ public:
   template< typename V
           , typename = enable_if<   can_call<V, const First&>()
                                  && can_call<V, const Second&>()>>
-  typename std::common_type<result_of<V, First>, result_of<V, Second>>::type
+  typename detail::common_type<result_of<V, First>, result_of<V, Second>>::type
   visit(V&& visitor) const {
     switch (_type) {
       case Type::first:
@@ -220,7 +227,7 @@ public:
                                  && !can_call<V, const First&>()
                                  &&  can_call<V, Second&>()
                                  && !can_call<V, const Second&>()>>
-  typename std::common_type<result_of<V, First&>, result_of<V, Second&>>::type
+  typename detail::common_type<result_of<V, First&>, result_of<V, Second&>>::type
   visit(V&& visitor) {
     switch (_type) {
       case Type::first:

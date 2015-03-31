@@ -1,10 +1,12 @@
 .PHONY: tests clean
 
+COMPILER := g++
+# COMPILER := clang++
+
 CFLAGS := -std=c++11 -Wall -Iinclude
 LFLAGS :=
 
-# COMPILER := g++
-COMPILER := clang++
+# CFLAGS := $(CFLAGS) -stdlib=libc++
 
 COMMON_DEPS := include/fry/either.h        \
 					     include/fry/future.h        \
@@ -16,7 +18,8 @@ COMMON_DEPS := include/fry/either.h        \
 					     include/fry/when_any.h
 
 ################################################################################
-TESTS := tests/future_test 						\
+TESTS := tests/either_test            \
+				 tests/future_test 						\
 				 tests/result_test 						\
 				 tests/future_result_test 		\
 				 tests/repeat_until_test  		\
