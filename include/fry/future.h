@@ -291,7 +291,7 @@ namespace detail {
     }
 
     bool is_ready() const {
-      return value;
+      return (bool) value;
     }
 
     void set_value(const T& v) {
