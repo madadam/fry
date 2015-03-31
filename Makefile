@@ -4,7 +4,7 @@ CFLAGS := -std=c++11 -Wall -Iinclude
 LFLAGS :=
 
 # COMPILER := g++
-COMPILER := clang
+COMPILER := clang++
 
 COMMON_DEPS := include/fry/either.h        \
 					     include/fry/future.h        \

@@ -45,13 +45,11 @@ struct can_call<F, void> : decltype(internal::can_call<F>(0)) {};
 
 ////////////////////////////////////////////////////////////////////////////////
 namespace internal {
-  template<typename F, typename... Args> struct result_of {
-    typedef typename std::result_of<F(Args...)>::type type;
-  };
+  template<typename F, typename... Args>
+  struct result_of : std::result_of<F(Args...)> {};
 
-  template<typename F> struct result_of<F, void> {
-    typedef typename std::result_of<F()>::type type;
-  };
+  template<typename F>
+  struct result_of<F, void> : std::result_of<F()> {};
 }
 
 // result_of<T, A> is the same as std::result_of<T(A0)>::type, but it works

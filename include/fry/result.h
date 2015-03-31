@@ -65,8 +65,10 @@ namespace detail {
 
   //----------------------------------------------------------------------------
   template<typename T, typename E, typename F>
-  enable_if< !is_void<result_of<F, E>>{} && !std::is_same<result_of<F, E>, E>{}
-           , Result<T, E>>
+  enable_if<    !is_void<result_of<F, E>>{}
+             && !std::is_same<result_of<F, E>, E>{}
+           , Result<T, E>
+           >
   make_result(F&& fun, const E& error) {
     return ::fry::make_result<E>(fun(error));
   }
